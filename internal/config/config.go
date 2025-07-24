@@ -1,30 +1,79 @@
 package config
 
-import ("os")
+import (
+	"encoding/json"
+	"os"
+)
+
 const configFileName = ".gatorconfig.json"
 
-func GetConfigFilePath() (string, error){ 
+func getConfigFilePath() (string, error) {
 	homeDir, err := os.UserHomeDir()
 
 	if err != nil {
 		return "", err
 	}
 
-	return homeDir, nil
+	return homeDir + "/" + configFileName, nil
 
 }
 
 type Config struct {
-	DBURL string `json:"db_url"`
+	DBURL        string `json:"db_url"`
 	CurrUserName string `json:"current_user_name"`
 }
 
+func write(cfg Config) error {
+	fullPath, err := getConfigFilePath()
+	if err != nil {
+		return err
+	}
+
+	jsonData, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(fullPath, jsonData, 0644); err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
 func Read() (Config, error) {
+	fullFilePath, err := getConfigFilePath()
+	if err != nil {
+		return Config{}, err
+	}
 
-	
+	data, err := os.ReadFile(fullFilePath)
+	if err != nil {
+		return Config{}, err
+	}
 
+	var configs Config
 
-	
+	if err := json.Unmarshal(data, &configs); err != nil {
+		return Config{}, err
+	}
 
-	return Config{}, nil
+	return configs, nil
+}
+
+func SetUser(name string) error {
+	currConfig, err := Read()
+
+	if err != nil {
+		return err
+	}
+
+	currConfig.CurrUserName = name
+
+	if err := write(currConfig); err != nil {
+		return err
+	}
+
+	return nil
 }
