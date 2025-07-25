@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	config "github.com/saifullah605/Gator/internal/config"
 )
@@ -9,19 +10,30 @@ import (
 func main() {
 	currConfig, err := config.Read()
 	if err != nil {
-		fmt.Println(nil)
+		fmt.Println("Cannot read config:", err)
 	}
 
-	fmt.Println(currConfig)
-	if err := config.SetUser("saif"); err != nil {
-		fmt.Println(err)
+	states := &state{&currConfig}
+	commands := &commands{make(map[string]func(*state, command) error)}
+
+	commands.register("login", handlerLogin)
+	arguments := os.Args
+
+	if len(arguments) < 2 {
+		fmt.Println("invalid command, not enough arguments")
+		os.Exit(1)
 	}
 
-	currConfig, err = config.Read()
-	if err != nil {
-		fmt.Println(err)
+	command := command{
+		name:      arguments[1],
+		arguments: arguments[2:],
 	}
 
-	fmt.Println(currConfig)
+	if err := commands.run(states, command); err != nil {
+		fmt.Println("erorr:", err)
+		os.Exit(1)
+	}
+
+	os.Exit(0)
 
 }

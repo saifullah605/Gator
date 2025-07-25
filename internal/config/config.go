@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 )
 
 const configFileName = ".gatorconfig.json"
@@ -14,7 +15,7 @@ func getConfigFilePath() (string, error) {
 		return "", err
 	}
 
-	return homeDir + "/" + configFileName, nil
+	return filepath.Join(homeDir, configFileName), nil
 
 }
 
@@ -62,18 +63,7 @@ func Read() (Config, error) {
 	return configs, nil
 }
 
-func SetUser(name string) error {
-	currConfig, err := Read()
-
-	if err != nil {
-		return err
-	}
-
-	currConfig.CurrUserName = name
-
-	if err := write(currConfig); err != nil {
-		return err
-	}
-
-	return nil
+func (cfg *Config) SetUser(name string) error {
+	cfg.CurrUserName = name
+	return write(*cfg)
 }
