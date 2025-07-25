@@ -43,7 +43,7 @@ func handlerLogin(s *state, cmd command) error {
 		return fmt.Errorf("cannot set username: %v", err)
 	}
 
-	fmt.Println("User has been set")
+	fmt.Println("User has been set:", cmd.arguments[0])
 
 	return nil
 }
