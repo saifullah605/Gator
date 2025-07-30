@@ -92,5 +92,11 @@ func handlerRegister(s *state, cmd command) error {
 }
 
 func handlerReset(s *state, cmd command) error {
+	if err := s.db.ResetUsers(context.Background()); err != nil {
+		fmt.Println("Reset users was not successful")
+		return err
+	}
+
+	fmt.Println("Reset users was successful")
 	return nil
 }
