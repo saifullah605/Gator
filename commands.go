@@ -90,3 +90,7 @@ func handlerRegister(s *state, cmd command) error {
 	return s.config.SetUser(user.Name)
 
 }
+
+func handlerReset(s *state, cmd command) error {
+	return nil
+}
