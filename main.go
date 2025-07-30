@@ -1,10 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 
+	_ "github.com/lib/pq"
 	config "github.com/saifullah605/Gator/internal/config"
+	"github.com/saifullah605/Gator/internal/database"
 )
 
 func main() {
@@ -13,10 +16,17 @@ func main() {
 		fmt.Println("Cannot read config:", err)
 	}
 
-	states := &state{&currConfig}
+	db, err := sql.Open("postgres", currConfig.DBURL)
+	if err != nil {
+		fmt.Println(err)
+	}
+	dbQueries := database.New(db)
+
+	states := &state{dbQueries, &currConfig}
 	commands := &commands{make(map[string]func(*state, command) error)}
 
 	commands.register("login", handlerLogin)
+	commands.register("register", handlerRegister)
 	arguments := os.Args
 
 	if len(arguments) < 2 {
