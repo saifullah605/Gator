@@ -100,3 +100,21 @@ func handlerReset(s *state, cmd command) error {
 	fmt.Println("Reset users was successful")
 	return nil
 }
+
+func handlerUsers(s *state, cmd command) error {
+	users, err := s.db.GetUsers(context.Background())
+
+	if err != nil {
+		return fmt.Errorf("cannot get users, error: %v", err)
+	}
+
+	for _, user := range users {
+		if user.Name == s.config.CurrUserName {
+			fmt.Println("*", user.Name, "(current)")
+		}
+
+		fmt.Println("*", user.Name)
+	}
+
+	return nil
+}
