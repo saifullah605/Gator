@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/xml"
+	"html"
 	"net/http"
 )
-
 
 type RSSFeed struct {
 	Channel struct {
@@ -23,13 +24,39 @@ type RSSItem struct {
 }
 
 func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
-	request :=  http.NewRequestWithContext
-	
 
+	//create new request
+	request, err := http.NewRequestWithContext(ctx, "GET", feedURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("User-Agent", "gator")
 
+	//get responce
+	res, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
 
+	defer res.Body.Close()
 
+	//decode response
+	var feed RSSFeed
+	decoder := xml.NewDecoder(res.Body)
+	if err := decoder.Decode(&feed); err != nil {
+		return nil, err
+	}
 
+	feed.Channel.Title = html.UnescapeString(feed.Channel.Title)
+	feed.Channel.Description = html.UnescapeString(feed.Channel.Description)
 
-	return &RSSFeed{}, nil
+	for i, item := range feed.Channel.Item {
+		item.Title = html.UnescapeString(item.Title)
+		item.Description = html.UnescapeString(item.Description)
+		feed.Channel.Item[i] = item
+
+	}
+
+	return &feed, nil
+
 }
