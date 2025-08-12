@@ -129,3 +129,34 @@ func handlerAgg(s *state, cmd command) error {
 	fmt.Println(feed)
 	return nil
 }
+
+func handlerAddFeed(s *state, cmd command) error {
+	switch len(cmd.arguments) {
+	case 0:
+		return fmt.Errorf("need a name and url for feed, the first argument is the name, the second is the url, use quotation marks to wrap the name and url")
+	case 1:
+		return fmt.Errorf("need url for feed")
+	}
+
+	user, err := s.db.GetUser(context.Background(), s.config.CurrUserName)
+	if err != nil {
+		return err
+	}
+
+	feed, err := s.db.CreateFeed(context.Background(), database.CreateFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      cmd.arguments[0],
+		Url:       cmd.arguments[1],
+		UserID:    user.ID,
+	})
+
+	if err != nil {
+		return fmt.Errorf("cannot add feed")
+	}
+	fmt.Println("feed added")
+	fmt.Println(feed)
+
+	return nil
+}
