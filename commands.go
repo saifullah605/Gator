@@ -160,3 +160,23 @@ func handlerAddFeed(s *state, cmd command) error {
 
 	return nil
 }
+
+func handlerFeeds(s *state, cmd command) error {
+
+	feeds, err := s.db.GetFeeds(context.Background())
+
+	if err != nil {
+		return fmt.Errorf("cannot get feeds, error: %v", err)
+	}
+
+	if len(feeds) == 0 {
+		fmt.Println("There are no active feeds")
+		return nil
+	}
+
+	for i, feed := range feeds {
+		fmt.Printf("%v: user: %v name: %v url: %v\n", i+1, feed.User, feed.Name, feed.Url)
+	}
+
+	return nil
+}
