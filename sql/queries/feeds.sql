@@ -15,6 +15,10 @@ RETURNING *;
 SELECT feeds.name, feeds.url, users.name as user FROM feeds
 INNER JOIN users ON feeds.user_id = users.id; 
 
+-- name: GetFeedId :one
+SELECT id FROM feeds
+WHERE url = $1;
+
 -- name: CreateFeedFollow :one
 WITH inserted_feed_follow AS (
      INSERT INTO feed_follows (id, created_at, updated_at, user_id, feed_id)
@@ -34,3 +38,9 @@ WITH inserted_feed_follow AS (
      FROM inserted_feed_follow
      INNER JOIN users ON inserted_feed_follow.user_id = users.id
      INNER JOIN feeds ON inserted_feed_follow.feed_id = feeds.id;
+
+
+-- name: GetFeedFollowsForUser :many
+SELECT feed_follows.*, feeds.name as feed_name, users.name as user_name FROM feed_follows INNER JOIN feeds ON feed_follows.feed_id = feeds.id
+INNER JOIN users ON feed_follows.user_id = users.id
+WHERE feed_follows.user_id = $1;

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	config "github.com/saifullah605/Gator/internal/config"
 	"github.com/saifullah605/Gator/internal/database"
 )
@@ -153,9 +154,24 @@ func handlerAddFeed(s *state, cmd command) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("cannot add feed")
+		if pgErr, ok := err.(*pq.Error); ok {
+			if pgErr.Code == "23505" {
+				return fmt.Errorf("feed already exist, follow feed using the follow command")
+			}
+		}
+		return fmt.Errorf("cannot add feed, error: %v", err)
 	}
-	fmt.Println("feed added")
+
+	if _, err := s.db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    user.ID,
+		FeedID:    feed.ID,
+	}); err != nil {
+		return fmt.Errorf("feed added, but cannot follow feed, please use feed command, error: %v\n%v", err, feed)
+	}
+	fmt.Println("feed added and automatically following feed")
 	fmt.Println(feed)
 
 	return nil
@@ -176,6 +192,67 @@ func handlerFeeds(s *state, cmd command) error {
 
 	for i, feed := range feeds {
 		fmt.Printf("%v: user: %v name: %v url: %v\n", i+1, feed.User, feed.Name, feed.Url)
+	}
+
+	return nil
+}
+
+func handlerFollow(s *state, cmd command) error {
+	if len(cmd.arguments) == 0 {
+		return fmt.Errorf("needs a URL link")
+	}
+
+	user, err := s.db.GetUser(context.Background(), s.config.CurrUserName)
+
+	if err != nil {
+		return fmt.Errorf("cannot link user, error: %v", err)
+	}
+
+	feedId, err := s.db.GetFeedId(context.Background(), cmd.arguments[0])
+
+	if err == sql.ErrNoRows {
+		return fmt.Errorf("feed does not exist")
+	} else if err != nil {
+		return fmt.Errorf("cannot link feed, error: %v", err)
+	}
+
+	followedData, err := s.db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    user.ID,
+		FeedID:    feedId,
+	})
+
+	if err != nil {
+		if pgErr, ok := err.(*pq.Error); ok {
+			if pgErr.Code == "23505" {
+				return fmt.Errorf("feed already followed")
+			}
+		}
+		return fmt.Errorf("cannot follow feed, error: %v", err)
+	}
+
+	fmt.Printf("following feed success for user: %v of feed %v\n", followedData.UserName, followedData.FeedName)
+
+	return nil
+}
+
+func handlerFollowingList(s *state, cmd command) error {
+	user, err := s.db.GetUser(context.Background(), s.config.CurrUserName)
+
+	if err != nil {
+		return fmt.Errorf("cannot get user info, error: %v", err)
+	}
+
+	followList, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
+
+	if err != nil {
+		return fmt.Errorf("cannot get followers list, error: %v", err)
+	}
+
+	for _, feed := range followList {
+		fmt.Printf("%v\n", feed.FeedName)
 	}
 
 	return nil
