@@ -131,17 +131,12 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
 	switch len(cmd.arguments) {
 	case 0:
 		return fmt.Errorf("need a name and url for feed, the first argument is the name, the second is the url, use quotation marks to wrap the name and url")
 	case 1:
 		return fmt.Errorf("need url for feed")
-	}
-
-	user, err := s.db.GetUser(context.Background(), s.config.CurrUserName)
-	if err != nil {
-		return err
 	}
 
 	feed, err := s.db.CreateFeed(context.Background(), database.CreateFeedParams{
@@ -197,15 +192,9 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollow(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, user database.User) error {
 	if len(cmd.arguments) == 0 {
 		return fmt.Errorf("needs a URL link")
-	}
-
-	user, err := s.db.GetUser(context.Background(), s.config.CurrUserName)
-
-	if err != nil {
-		return fmt.Errorf("cannot link user, error: %v", err)
 	}
 
 	feedId, err := s.db.GetFeedId(context.Background(), cmd.arguments[0])
@@ -238,12 +227,7 @@ func handlerFollow(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollowingList(s *state, cmd command) error {
-	user, err := s.db.GetUser(context.Background(), s.config.CurrUserName)
-
-	if err != nil {
-		return fmt.Errorf("cannot get user info, error: %v", err)
-	}
+func handlerFollowingList(s *state, cmd command, user database.User) error {
 
 	followList, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
 
@@ -256,4 +240,17 @@ func handlerFollowingList(s *state, cmd command) error {
 	}
 
 	return nil
+}
+
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+	return func(s *state, cmd command) error {
+		user, err := s.db.GetUser(context.Background(), s.config.CurrUserName)
+		if err != nil {
+			return fmt.Errorf("cannot get user info")
+		}
+
+		return handler(s, cmd, user)
+
+	}
+
 }
