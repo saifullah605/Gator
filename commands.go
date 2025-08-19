@@ -254,3 +254,22 @@ func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) 
 	}
 
 }
+
+func handlerUnfollow(s *state, cmd command, user database.User) error {
+	if len(cmd.arguments) == 0 {
+		return fmt.Errorf("need a url argument")
+	}
+
+	if _, err := s.db.Unfollow(context.Background(), database.UnfollowParams{
+		UserID: user.ID,
+		Url:    cmd.arguments[0],
+	}); err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("user does not follow that feed")
+		}
+
+		return fmt.Errorf("cannot unfollow that feed, error: %v", err)
+	}
+
+	return nil
+}

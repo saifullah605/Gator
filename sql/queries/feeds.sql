@@ -44,3 +44,9 @@ WITH inserted_feed_follow AS (
 SELECT feed_follows.*, feeds.name as feed_name, users.name as user_name FROM feed_follows INNER JOIN feeds ON feed_follows.feed_id = feeds.id
 INNER JOIN users ON feed_follows.user_id = users.id
 WHERE feed_follows.user_id = $1;
+
+-- name: Unfollow :one
+DELETE from feed_follows WHERE feed_follows.user_id = $1 AND feed_follows.feed_id IN (
+     SELECT id from feeds WHERE url = $2
+)
+RETURNING *;
