@@ -121,14 +121,26 @@ func handlerUsers(s *state, cmd command) error {
 }
 
 func handlerAgg(s *state, cmd command) error {
-	url := "https://www.wagslane.dev/index.xml"
-	feed, err := fetchFeed(context.Background(), url)
-	if err != nil {
-		return err
+	if len(cmd.arguments) == 0 {
+		return fmt.Errorf("need a time argument, examples: 1s, 1m, 1h, 1h10m10s")
 	}
 
-	fmt.Println(feed)
-	return nil
+	timeBetweenRequests, err := time.ParseDuration(cmd.arguments[0])
+
+	if err != nil {
+		return fmt.Errorf("improper time format, examples of proper format: 1s, 1m, 1h, 1h10m10s")
+	}
+
+	ticker := time.NewTicker(timeBetweenRequests)
+	fmt.Println("Collecting feeds every", timeBetweenRequests)
+
+	for ; ; <-ticker.C {
+		err := scrapeFeeds(s)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+
 }
 
 func handlerAddFeed(s *state, cmd command, user database.User) error {
@@ -272,4 +284,32 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 	}
 
 	return nil
+}
+
+func scrapeFeeds(s *state) error {
+	nextFeed, err := s.db.GetNextFeedToFetch(context.Background())
+
+	if err != nil {
+		return fmt.Errorf("cannot get next feed, error: %v", err)
+	}
+
+	s.db.MarkFeedFetched(context.Background(), database.MarkFeedFetchedParams{
+		LastFetchedAt: sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		},
+		ID: nextFeed.ID,
+	})
+
+	data, err := fetchFeed(context.Background(), nextFeed.Url)
+	if err != nil {
+		return fmt.Errorf("cannot get contents of feed, error: %v", err)
+	}
+
+	for _, item := range data.Channel.Item {
+		fmt.Println(item.Title)
+	}
+
+	return nil
+
 }
