@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -307,7 +308,88 @@ func scrapeFeeds(s *state) error {
 	}
 
 	for _, item := range data.Channel.Item {
-		fmt.Println(item.Title)
+		parsedTime, errTime := time.Parse("Mon, 02 Jan 2006 15:04:05 MST", item.PubDate)
+		if errTime != nil {
+			parsedTime = time.Time{}
+		}
+		post, err := s.db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:        uuid.New(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Title: sql.NullString{
+				String: item.Title,
+				Valid:  item.Title != "",
+			},
+			Url: item.Link,
+			Description: sql.NullString{
+				String: item.Description,
+				Valid:  item.Description != "",
+			},
+			PublishedAt: sql.NullTime{
+				Time:  parsedTime,
+				Valid: errTime == nil,
+			},
+			FeedID: nextFeed.ID,
+		})
+
+		if err != nil {
+			if pgErr, ok := err.(*pq.Error); ok {
+				if pgErr.Code != "23505" {
+					fmt.Println("cannot get one post for feed id", nextFeed.ID, "error:", err)
+				}
+			} else {
+				fmt.Println("non-postgres error for one of the post:", ok)
+			}
+
+		} else {
+			fmt.Println("posts have been stored:", post, "for feed id", nextFeed.ID)
+		}
+	}
+
+	return nil
+
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+
+	var limit int32 = 2
+
+	if len(cmd.arguments) != 0 {
+		newLimit, err := strconv.Atoi(cmd.arguments[0])
+		if err != nil {
+			return fmt.Errorf("invalid arguments, it has to be a number or blank(defualt 2)")
+		}
+		limit = int32(newLimit)
+	}
+
+	posts, err := s.db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit:  limit,
+	})
+
+	if err != nil {
+		return fmt.Errorf("cannot load posts, please try again")
+	}
+
+	if len(posts) == 0 {
+		fmt.Println("you have no current posts from any feeds, please try again or follow a feed to get browse posts")
+		return nil
+	}
+
+	for _, post := range posts {
+		fmt.Println()
+		fmt.Println()
+		fmt.Println("title:", post.Title.String)
+
+		fmt.Println()
+		fmt.Println()
+		fmt.Println("description:", post.Description.String)
+
+		fmt.Println()
+		fmt.Println()
+		fmt.Println("The URL for more details", post.Url)
+		fmt.Println()
+		fmt.Println()
 	}
 
 	return nil
